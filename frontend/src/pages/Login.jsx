@@ -1,9 +1,11 @@
 import { useState } from 'react';
 import axios from 'axios';
+import { useNavigate } from 'react-router-dom'; // ✅ import useNavigate
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [msg, setMsg] = useState('');
+  const navigate = useNavigate(); // ✅ initialize navigate
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -12,7 +14,11 @@ export default function Login() {
     try {
       const res = await axios.post('http://localhost:5000/login', form);
       setMsg(res.data.message || 'Login successful!');
+      
+      // ✅ Redirect after successful login
+      navigate('/home');
     } catch (err) {
+      console.log(err.response?.data); // ✅ log backend error
       setMsg(err.response?.data?.error || 'Login failed');
     }
   };
@@ -64,8 +70,22 @@ export default function Login() {
     <div style={containerStyle}>
       <form style={formStyle} onSubmit={handleSubmit}>
         <h2 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>Login</h2>
-        <input style={inputStyle} name="email" type="email" placeholder="Email" onChange={handleChange} required />
-        <input style={inputStyle} name="password" type="password" placeholder="Password" onChange={handleChange} required />
+        <input
+          style={inputStyle}
+          name="email"
+          type="email"
+          placeholder="Email"
+          onChange={handleChange}
+          required
+        />
+        <input
+          style={inputStyle}
+          name="password"
+          type="password"
+          placeholder="Password"
+          onChange={handleChange}
+          required
+        />
         <button style={buttonStyle} type="submit">Login</button>
         <p style={msgStyle}>{msg}</p>
       </form>
