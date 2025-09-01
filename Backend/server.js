@@ -94,6 +94,21 @@ app.post('/login', (req, res) => {
 });
 
 // =============================
+// 🔹 GET tourist spots by category
+// =============================
+app.get('/tourist-spots', (req, res) => {
+  const sql = "SELECT * FROM tourist_spots ORDER BY category";
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching spots:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    res.json(results);
+  });
+});
+
+
+// =============================
 // 🔹 Start Server
 // =============================
 const PORT = 5000;
