@@ -2,10 +2,16 @@ import { useState } from 'react';
 import axios from 'axios';
 
 export default function Register() {
-  const [form, setForm] = useState({ username: '', email: '', password: '' });
+  const [form, setForm] = useState({ 
+    username: '', 
+    email: '', 
+    password: '', 
+    role: 'user' 
+  });
   const [msg, setMsg] = useState('');
 
-  const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
+  const handleChange = e => 
+    setForm({ ...form, [e.target.name]: e.target.value });
 
   const handleSubmit = async e => {
     e.preventDefault();
@@ -63,11 +69,52 @@ export default function Register() {
   return (
     <div style={containerStyle}>
       <form style={formStyle} onSubmit={handleSubmit}>
-        <h2 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>Register</h2>
-        <input style={inputStyle} name="username" placeholder="Username" onChange={handleChange} required />
-        <input style={inputStyle} name="email" type="email" placeholder="Email" onChange={handleChange} required />
-        <input style={inputStyle} name="password" type="password" placeholder="Password" onChange={handleChange} required />
-        <button style={buttonStyle} type="submit">Register</button>
+        <h2 style={{ textAlign: 'center', marginBottom: '10px', color: '#333' }}>
+          Register
+        </h2>
+
+        <input
+          style={inputStyle}
+          name="username"
+          placeholder="Username"
+          onChange={handleChange}
+          required
+        />
+
+        <input
+          style={inputStyle}
+          name="email"
+          type="email"
+          placeholder="Email"
+          onChange={handleChange}
+          required
+        />
+
+        <input
+          style={inputStyle}
+          name="password"
+          type="password"
+          placeholder="Password"
+          onChange={handleChange}
+          required
+        />
+
+        {/* New Role Field */}
+        <select
+          style={inputStyle}
+          name="role"
+          value={form.role}
+          onChange={handleChange}
+          required
+        >
+          <option value="user">User</option>
+          <option value="admin">Admin</option>
+        </select>
+
+        <button style={buttonStyle} type="submit">
+          Register
+        </button>
+
         <p style={msgStyle}>{msg}</p>
       </form>
     </div>

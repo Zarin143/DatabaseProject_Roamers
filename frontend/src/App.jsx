@@ -7,10 +7,6 @@ import './App.css';
 function App() {
   return (
     <BrowserRouter>
-      <nav style={{ margin: '20px' }}>
-        <Link to="/login" style={{ marginRight: '10px' }}>Login</Link>
-        <Link to="/register">Register</Link>
-      </nav>
 
       <Routes>
         <Route path="/" element={<h2>Welcome to Roamers App</h2>} />

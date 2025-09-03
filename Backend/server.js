@@ -7,7 +7,7 @@ const app = express();
 
 // ✅ Middleware
 app.use(express.json());
-app.use(cors()); // allow frontend (Vite) to access backend
+app.use(cors()); 
 
 // =============================
 // 🔹 Test route
@@ -17,7 +17,7 @@ app.get('/', (req, res) => {
 });
 
 // =============================
-// 🔹 Fetch all users (optional)
+// 🔹 Fetch all users 
 // =============================
 app.get('/users', (req, res) => {
   db.query('SELECT * FROM users', (err, results) => {
