@@ -15,6 +15,9 @@ export default function Login() {
       const res = await axios.post('http://localhost:5000/login', form);
       setMsg(res.data.message || 'Login successful!');
       
+            // ✅ Save user info
+      localStorage.setItem("user", JSON.stringify(res.data.user));
+      
       // ✅ Redirect after successful login
       navigate('/home');
     } catch (err) {

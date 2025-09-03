@@ -2,6 +2,7 @@ import { BrowserRouter, Routes, Route, Link } from 'react-router-dom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import Home from "./pages/Home";
+import AddSpot from './pages/AddSpot'; 
 import './App.css';
 
 function App() {
@@ -13,6 +14,7 @@ function App() {
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
           <Route path="/home" element={<Home />} />
+            <Route path="/add-spot" element={<AddSpot />} />
       </Routes>
     </BrowserRouter>
   );
