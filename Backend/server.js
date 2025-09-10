@@ -337,6 +337,22 @@ app.get("/recommended/:userId", (req, res) => {
     });
   });
 });
+// =============================
+// 🔹 PUT recommended place
+// =============================
+app.put("/users/:id/location", async (req, res) => {
+  const userId = req.params.id;
+  const { location } = req.body;
+
+  try {
+    // Update location in the database
+    await db.query("UPDATE users SET location = ? WHERE id = ?", [location, userId]);
+    res.status(200).json({ message: "Location updated" });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ message: "Failed to update location" });
+  }
+});
 
 // =============================
 // 🔹 Start Server

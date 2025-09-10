@@ -6,36 +6,70 @@ import { Link } from "react-router-dom";
 export default function Home() {
   const [spots, setSpots] = useState([]);
   const [user, setUser] = useState(null);
+  const [location, setLocation] = useState(""); // For dropdown
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [updatingLocation, setUpdatingLocation] = useState(false);
 
   useEffect(() => {
-    // Fetch tourist spots with error handling
+    // Fetch tourist spots
     axios
       .get("http://localhost:5000/tourist-spots")
-      .then((res) => {
-        setSpots(res.data);
-        setLoading(false);
-      })
+      .then((res) => setSpots(res.data))
       .catch((err) => {
         console.error("Error fetching spots:", err);
         setError("Failed to load tourist spots");
-        setLoading(false);
-        
-        
       });
 
-    // Get logged in user info from localStorage
+    // Get logged-in user from localStorage
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
-      setUser(JSON.parse(storedUser));
+      const parsedUser = JSON.parse(storedUser);
+      setUser(parsedUser);
+
+      // Fetch latest user data to get stored location
+      axios
+        .get(`http://localhost:5000/users/${parsedUser.id}`)
+        .then((res) => {
+          setUser(res.data);
+          setLocation(res.data.location || "");
+          localStorage.setItem("user", JSON.stringify(res.data));
+        })
+        .catch((err) => console.error("Error fetching user info:", err));
     }
+
     setLoading(false);
   }, []);
 
+  const handleLocationChange = async (e) => {
+    const selectedLocation = e.target.value;
+    setLocation(selectedLocation);
+    setUpdatingLocation(true);
+
+    try {
+      const res = await axios.put(
+        `http://localhost:5000/users/${user.id}/location`,
+        { location: selectedLocation }
+      );
+
+      if (res.data) {
+        const updatedUser = { ...user, location: selectedLocation };
+        setUser(updatedUser);
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+
+    setUpdatingLocation(false);
+  };
+
   if (loading) {
     return (
-      <div className="d-flex justify-content-center align-items-center" style={{ height: "100vh" }}>
+      <div
+        className="d-flex justify-content-center align-items-center"
+        style={{ height: "100vh" }}
+      >
         <div className="spinner-border text-primary" role="status">
           <span className="visually-hidden">Loading...</span>
         </div>
@@ -54,11 +88,19 @@ export default function Home() {
     <div style={{ width: "100%", minHeight: "100vh" }}>
       {/* Error message */}
       {error && (
-        <div className="alert alert-warning alert-dismissible fade show" role="alert">
+        <div
+          className="alert alert-warning alert-dismissible fade show"
+          role="alert"
+        >
           {error}
-          <button type="button" className="btn-close" onClick={() => setError(null)}></button>
+          <button
+            type="button"
+            className="btn-close"
+            onClick={() => setError(null)}
+          ></button>
         </div>
       )}
+
       {/* Navbar */}
       <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow">
         <div className="container-fluid">
@@ -87,7 +129,6 @@ export default function Home() {
               </li>
             </ul>
 
-            {/* Always show Login & Register */}
             <div className="ms-3 d-flex gap-2 align-items-center">
               <Link to="/login" className="btn btn-outline-light">
                 Login
@@ -116,6 +157,26 @@ export default function Home() {
                   +
                 </Link>
               )}
+
+              {/* User Location Dropdown */}
+              {user && (
+                <select
+                  className="form-select form-select-sm ms-2"
+                  value={location}
+                  onChange={handleLocationChange}
+                  disabled={updatingLocation}
+                >
+                  {/* Only show placeholder if user has no location */}
+                  {location === "" && <option value="">Select Location</option>}
+                  <option value="Cox’s Bazar">Cox’s Bazar</option>
+                  <option value="Rangamati">Rangamati</option>
+                  <option value="Sylhet">Sylhet</option>
+                  <option value="Khulna">Khulna</option>
+                  <option value="Dhaka">Dhaka</option>
+                  <option value="Barishal">Barishal</option>
+                  <option value="Rajshahi">Rajshahi</option>
+                </select>
+              )}
             </div>
           </div>
         </div>
@@ -131,17 +192,17 @@ export default function Home() {
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
-
       >
         <div className="container text-center">
           <h1 className="display-4 fw-bold text-shadow">Explore Bangladesh</h1>
           <p className="lead text-shadow">
-            Discover the best tourist spots, beaches, mountains, and cities across Bangladesh.
+            Discover the best tourist spots, beaches, mountains, and cities across
+            Bangladesh.
           </p>
         </div>
       </section>
 
-       {/* Recommended Places Button below hero */}
+      {/* Recommended Places Button */}
       <div className="text-center my-4">
         <Link to="/recommended" className="btn btn-success btn-lg">
           Go to Recommended Places
@@ -153,7 +214,9 @@ export default function Home() {
         <div className="container" style={{ maxWidth: "1200px" }}>
           {Object.keys(grouped).map((category) => (
             <div key={category} className="mb-5">
-              <h2 className="mb-4 text-center text-primary fw-bold">{category.toUpperCase()}</h2>
+              <h2 className="mb-4 text-center text-primary fw-bold">
+                {category.toUpperCase()}
+              </h2>
               <div className="row g-4 justify-content-center">
                 {grouped[category].map((spot) => (
                   <div key={spot.id} className="col-12 col-sm-6 col-md-4 col-lg-3">
@@ -168,7 +231,10 @@ export default function Home() {
                       </Link>
                       <div className="card-body">
                         <h5 className="card-title">
-                          <Link to={`/spot/${spot.id}`} className="text-decoration-none text-dark">
+                          <Link
+                            to={`/spot/${spot.id}`}
+                            className="text-decoration-none text-dark"
+                          >
                             {spot.name}
                           </Link>
                         </h5>
@@ -187,7 +253,10 @@ export default function Home() {
                         >
                           {spot.description}
                         </p>
-                        <Link to={`/spot/${spot.id}`} className="btn btn-primary btn-sm">
+                        <Link
+                          to={`/spot/${spot.id}`}
+                          className="btn btn-primary btn-sm"
+                        >
                           View Details
                         </Link>
                       </div>
