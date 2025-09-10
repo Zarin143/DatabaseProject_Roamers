@@ -277,10 +277,13 @@ export default function SpotDetail() {
                 </div>
                 <div className="card-body">
                   <div className="d-grid gap-2 mb-3">
-                    <button className="btn btn-success btn-lg rounded-pill">
-                      <i className="bi bi-calendar-check me-2"></i>
-                      Book Tour
-                    </button>
+                    <Link
+  to={`/book-tour/${spot.id}`}
+  className="btn btn-success btn-lg rounded-pill"
+>
+  <i className="bi bi-calendar-check me-2"></i>
+  Book Tour
+</Link>
                     <button className="btn btn-info btn-lg rounded-pill">
                       <i className="bi bi-building me-2"></i>
                       Find Hotels

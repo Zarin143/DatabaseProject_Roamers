@@ -355,6 +355,31 @@ app.put("/users/:id/location", async (req, res) => {
 });
 
 // =============================
+// 🔹 POST Book Tour
+// =============================
+app.post("/bookings", async (req, res) => {
+  const { user_id, spot_id, booking_date, num_people, special_request } = req.body;
+
+  try {
+    // Call stored procedure
+    const [result] = await db.query(
+      "CALL AddBooking(?, ?, ?, ?, ?)",
+      [user_id, spot_id, booking_date, num_people, special_request]
+    );
+
+    if (result && result[0]?.message === "Booking successful") {
+      res.json({ success: true });
+    } else {
+      res.json({ success: false });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Booking failed" });
+  }
+});
+
+
+// =============================
 // 🔹 Start Server
 // =============================
 const PORT = 5000;

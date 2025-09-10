@@ -6,6 +6,7 @@ import AddSpot from './pages/AddSpot';
 import SpotDetail from './pages/SpotDetail';
 import Favorites from './pages/Favorites'; 
 import Recommended from './pages/Recommended'; 
+import BookTour from './pages/BookTour'; 
 import './App.css';
 
 function App() {
@@ -27,6 +28,7 @@ function App() {
           <Route path="/spot/:id" element={<SpotDetail />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/recommended" element={<Recommended />} />
+           <Route path="/book-tour/:id" element={<BookTour />} />
         </Routes>
       </div>
     </Router>
