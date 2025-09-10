@@ -1,0 +1,9 @@
+{
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "bootstrap": "^5.3.8",
+    "cors": "^2.8.5",
+    "jsonwebtoken": "^9.0.2",
+    "mysql2": "^3.14.5"
+  }
+}

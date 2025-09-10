@@ -20,13 +20,7 @@ API.interceptors.request.use((req) => {
 export const registerUser = (form) => API.post("/register", form);
 export const loginUser = (form) => API.post("/login", form);
 
-// =====================
-// 🔹 Place APIs
-// =====================
-export const getPlaces = () => API.get("/places");
 
-// =====================
-// 🔹 Tour APIs
-// =====================
-export const getTours = () => API.get("/tours");
-export const createTour = (data) => API.post("/tours", data);
+
+
+

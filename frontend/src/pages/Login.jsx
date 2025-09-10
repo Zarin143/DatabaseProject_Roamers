@@ -1,11 +1,11 @@
 import { useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom'; // ✅ import useNavigate
+import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' });
   const [msg, setMsg] = useState('');
-  const navigate = useNavigate(); // ✅ initialize navigate
+  const navigate = useNavigate();
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -15,16 +15,19 @@ export default function Login() {
       const res = await axios.post('http://localhost:5000/login', form);
       setMsg(res.data.message || 'Login successful!');
       
-            // ✅ Save user info
+      // ✅ Save user info and token
       localStorage.setItem("user", JSON.stringify(res.data.user));
+      localStorage.setItem("token", res.data.token);
+      localStorage.setItem("userId", res.data.user.id); // For favorites
       
       // ✅ Redirect after successful login
       navigate('/home');
     } catch (err) {
-      console.log(err.response?.data); // ✅ log backend error
+      console.log(err.response?.data);
       setMsg(err.response?.data?.error || 'Login failed');
     }
   };
+
 
   const containerStyle = {
     display: 'flex',
