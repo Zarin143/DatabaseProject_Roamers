@@ -292,6 +292,52 @@ app.get("/reviews/:spotId", (req, res) => {
   });
 });
 
+
+// =============================
+// 🔹 GET Recommended place
+// =============================
+app.get("/recommended/:userId", (req, res) => {
+  const userId = req.params.userId;
+
+  // Get user's location
+  const userQuery = "SELECT location FROM users WHERE id = ?";
+  db.query(userQuery, [userId], (err, userResult) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (userResult.length === 0)
+      return res.status(404).json({ error: "User not found" });
+
+    const userLocation = userResult[0].location;
+
+    // Fetch tourist spots matching user's location
+    const spotsQuery = `
+      SELECT * FROM tourist_spots
+      WHERE FIND_IN_SET(?, location)
+    `;
+    db.query(spotsQuery, [userLocation], (err, spotsResult) => {
+      if (err) return res.status(500).json({ error: err.message });
+
+      // Insert recommended places into recommended_place table
+      spotsResult.forEach((spot) => {
+        const insertQuery = `
+          INSERT INTO recommended_place (Nearby_place, Distance, Address, user_id, spot_id)
+          VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE Distance = VALUES(Distance), Address = VALUES(Address)
+        `;
+        db.query(
+          insertQuery,
+          [spot.name, spot.distance_from_current_location, spot.location, userId, spot.id],
+          (err2) => {
+            if (err2) console.error("Failed to insert recommended place:", err2.message);
+          }
+        );
+      });
+
+      // Return recommended spots to frontend
+      res.json(spotsResult);
+    });
+  });
+});
+
 // =============================
 // 🔹 Start Server
 // =============================

@@ -10,7 +10,6 @@ export default function Home() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // Fetch tourist spots with error handling
     axios
       .get("http://localhost:5000/tourist-spots")
       .then((res) => {
@@ -21,33 +20,8 @@ export default function Home() {
         console.error("Error fetching spots:", err);
         setError("Failed to load tourist spots");
         setLoading(false);
-        
-        // Set demo data if API fails
-        setSpots([
-          {
-            id: 1,
-            name: "Sylhet Tea Gardens",
-            category: "resort",
-            location: "Sylhet, Bangladesh",
-            distance_from_current_location: "250",
-            estimated_travel_time: "6 hours",
-            description: "Lush green tea gardens with peaceful resorts.",
-            image_url: "https://images.unsplash.com/photo-1590065480004-477ef6d4d5de?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8dGVhJTIwZ2FyZGVufGVufDB8fDB8fHww"
-          },
-          {
-            id: 2,
-            name: "Cox's Bazar Beach",
-            category: "beach",
-            location: "Cox's Bazar, Bangladesh",
-            distance_from_current_location: "350",
-            estimated_travel_time: "8 hours",
-            description: "World's longest natural sea beach with golden sands and waves.",
-            image_url: "https://images.unsplash.com/photo-1506905925346-21bda4d32df4?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxzZWFyY2h8Mnx8YmVhY2h8ZW58MHx8MHx8fDA"
-          }
-        ]);
       });
 
-    // Get logged in user info from localStorage
     const storedUser = localStorage.getItem("user");
     if (storedUser) {
       setUser(JSON.parse(storedUser));
@@ -65,7 +39,6 @@ export default function Home() {
     );
   }
 
-  // Group spots by category
   const grouped = spots.reduce((acc, spot) => {
     if (!acc[spot.category]) acc[spot.category] = [];
     acc[spot.category].push(spot);
@@ -74,51 +47,28 @@ export default function Home() {
 
   return (
     <div style={{ width: "100%", minHeight: "100vh" }}>
-      {/* Error message */}
       {error && (
         <div className="alert alert-warning alert-dismissible fade show" role="alert">
           {error}
           <button type="button" className="btn-close" onClick={() => setError(null)}></button>
         </div>
       )}
+
       {/* Navbar */}
       <nav className="navbar navbar-expand-lg navbar-dark bg-primary shadow">
         <div className="container-fluid">
-          <Link className="navbar-brand fw-bold" to="/">
-            Roamers
-          </Link>
-          <button
-            className="navbar-toggler"
-            type="button"
-            data-bs-toggle="collapse"
-            data-bs-target="#navbarNav"
-          >
+          <Link className="navbar-brand fw-bold" to="/">Roamers</Link>
+          <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
             <span className="navbar-toggler-icon"></span>
           </button>
           <div className="collapse navbar-collapse" id="navbarNav">
             <ul className="navbar-nav ms-auto align-items-center">
-              <li className="nav-item">
-                <Link className="nav-link active" to="/">
-                  Home
-                </Link>
-              </li>
-              <li className="nav-item">
-                <a className="nav-link" href="#about">
-                  About
-                </a>
-              </li>
+              <li className="nav-item"><Link className="nav-link active" to="/">Home</Link></li>
+              <li className="nav-item"><a className="nav-link" href="#about">About</a></li>
             </ul>
-
-            {/* Always show Login & Register */}
             <div className="ms-3 d-flex gap-2 align-items-center">
-              <Link to="/login" className="btn btn-outline-light">
-                Login
-              </Link>
-              <Link to="/register" className="btn btn-light">
-                Register
-              </Link>
-
-              {/* Admin Add Spot button */}
+              <Link to="/login" className="btn btn-outline-light">Login</Link>
+              <Link to="/register" className="btn btn-light">Register</Link>
               {user && user.role === "admin" && (
                 <Link
                   to="/add-spot"
@@ -134,9 +84,7 @@ export default function Home() {
                     marginLeft: "10px",
                   }}
                   title="Add Tourist Spot"
-                >
-                  +
-                </Link>
+                >+</Link>
               )}
             </div>
           </div>
@@ -162,6 +110,13 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Recommended Places Button below hero */}
+      <div className="text-center my-4">
+        <Link to="/recommended" className="btn btn-success btn-lg">
+          Go to Recommended Places
+        </Link>
+      </div>
+
       {/* Tourist Spots */}
       <main id="tours" className="py-5">
         <div className="container" style={{ maxWidth: "1200px" }}>
@@ -186,24 +141,10 @@ export default function Home() {
                             {spot.name}
                           </Link>
                         </h5>
-                        <p className="card-text mb-1">
-                          <b>Location:</b> {spot.location}
-                        </p>
-                        <p className="card-text mb-1">
-                          <b>Distance:</b> {spot.distance_from_current_location} km
-                        </p>
-                        <p className="card-text mb-1">
-                          <b>Travel Time:</b> {spot.estimated_travel_time}
-                        </p>
-                        <p
-                          className="card-text text-muted"
-                          style={{ fontSize: "13px" }}
-                        >
-                          {spot.description}
-                        </p>
-                        <Link to={`/spot/${spot.id}`} className="btn btn-primary btn-sm">
-                          View Details
-                        </Link>
+                        <p className="card-text mb-1"><b>Location:</b> {spot.location}</p>
+                        <p className="card-text mb-1"><b>Distance:</b> {spot.distance_from_current_location} km</p>
+                        <p className="card-text mb-1"><b>Travel Time:</b> {spot.estimated_travel_time}</p>
+                        <p className="card-text text-muted" style={{ fontSize: "13px" }}>{spot.description}</p>
                       </div>
                     </div>
                   </div>

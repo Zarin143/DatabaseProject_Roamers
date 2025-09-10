@@ -296,30 +296,7 @@ export default function SpotDetail() {
                 </div>
               </div>
 
-              {/* Quick Facts Card */}
-              <div className="card shadow-sm border-0">
-                <div className="card-body">
-                  <h6>Quick Facts</h6>
-                  <ul className="list-unstyled small">
-                    <li className="mb-2 d-flex align-items-center">
-                      <i className="bi bi-people me-2 text-muted"></i>
-                      <span>Group size: 2-10 people</span>
-                    </li>
-                    <li className="mb-2 d-flex align-items-center">
-                      <i className="bi bi-translate me-2 text-muted"></i>
-                      <span>Guides available in English, Bengali</span>
-                    </li>
-                    <li className="mb-2 d-flex align-items-center">
-                      <i className="bi bi-currency-dollar me-2 text-muted"></i>
-                      <span>From $45 per person</span>
-                    </li>
-                    <li className="mb-2 d-flex align-items-center">
-                      <i className="bi bi-star me-2 text-muted"></i>
-                      <span>4.8 rating (128 reviews)</span>
-                    </li>
-                  </ul>
-                </div>
-              </div>
+      
             </div>
           </div>
         </div>

@@ -5,6 +5,7 @@ import Home from "./pages/Home";
 import AddSpot from './pages/AddSpot'; 
 import SpotDetail from './pages/SpotDetail';
 import Favorites from './pages/Favorites'; 
+import Recommended from './pages/Recommended'; 
 import './App.css';
 
 function App() {
@@ -25,6 +26,7 @@ function App() {
           <Route path="/add-spot" element={<AddSpot />} />
           <Route path="/spot/:id" element={<SpotDetail />} />
           <Route path="/favorites" element={<Favorites />} />
+          <Route path="/recommended" element={<Recommended />} />
         </Routes>
       </div>
     </Router>
