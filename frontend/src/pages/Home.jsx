@@ -1,15 +1,17 @@
 import { useEffect, useState } from "react";
 import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 export default function Home() {
   const [spots, setSpots] = useState([]);
   const [user, setUser] = useState(null);
-  const [location, setLocation] = useState(""); // For dropdown
+  const [tours, setTours] = useState([]);
+  const [location, setLocation] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [updatingLocation, setUpdatingLocation] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     // Fetch tourist spots
@@ -26,19 +28,17 @@ export default function Home() {
     if (storedUser) {
       const parsedUser = JSON.parse(storedUser);
       setUser(parsedUser);
-
-      // Fetch latest user data to get stored location
-      axios
-        .get(`http://localhost:5000/users/${parsedUser.id}`)
-        .then((res) => {
-          setUser(res.data);
-          setLocation(res.data.location || "");
-          localStorage.setItem("user", JSON.stringify(res.data));
-        })
-        .catch((err) => console.error("Error fetching user info:", err));
+      setLocation(parsedUser.location || "");
     }
 
     setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    axios
+      .get("http://localhost:5000/tours")
+      .then((res) => setTours(res.data))
+      .catch((err) => console.error(err));
   }, []);
 
   const handleLocationChange = async (e) => {
@@ -62,6 +62,21 @@ export default function Home() {
     }
 
     setUpdatingLocation(false);
+  };
+
+  const joinTour = async (tourId) => {
+    try {
+      const token = localStorage.getItem("token");
+      await axios.post(
+        `http://localhost:5000/tours/${tourId}/join`,
+        {},
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      alert("Joined tour!");
+      window.location.reload();
+    } catch (err) {
+      alert(err.response?.data?.error || "Error joining tour");
+    }
   };
 
   if (loading) {
@@ -130,12 +145,16 @@ export default function Home() {
             </ul>
 
             <div className="ms-3 d-flex gap-2 align-items-center">
-              <Link to="/login" className="btn btn-outline-light">
-                Login
-              </Link>
-              <Link to="/register" className="btn btn-light">
-                Register
-              </Link>
+              {!user && (
+                <>
+                  <Link to="/login" className="btn btn-outline-light">
+                    Login
+                  </Link>
+                  <Link to="/register" className="btn btn-light">
+                    Register
+                  </Link>
+                </>
+              )}
 
               {/* Admin Add Spot button */}
               {user && user.role === "admin" && (
@@ -166,7 +185,6 @@ export default function Home() {
                   onChange={handleLocationChange}
                   disabled={updatingLocation}
                 >
-                  {/* Only show placeholder if user has no location */}
                   {location === "" && <option value="">Select Location</option>}
                   <option value="Cox’s Bazar">Cox’s Bazar</option>
                   <option value="Rangamati">Rangamati</option>
@@ -202,12 +220,66 @@ export default function Home() {
         </div>
       </section>
 
+      {/* Upcoming Tours - always show, but only users can join */}
+      {tours.length > 0 && (
+        <section className="py-5 bg-light">
+          <div className="container">
+            <h2 className="mb-4 text-center text-success fw-bold">Upcoming Tours</h2>
+            <div className="row g-4">
+              {tours.map((tour) => (
+                <div key={tour.Tour_id} className="col-md-4">
+                  <div className="card shadow-sm">
+                    <img
+                      src={tour.image_url}
+                      className="card-img-top"
+                      style={{ height: "200px", objectFit: "cover" }}
+                      alt={tour.place_name}
+                    />
+                    <div className="card-body">
+                      <h5>{tour.place_name}</h5>
+                      <p>
+                        <b>Date:</b> {new Date(tour.Tour_date).toDateString()}
+                      </p>
+                      <p>
+                        <b>Cost:</b> ${tour.Cost_per_person}
+                      </p>
+                      <p>
+                        <b>Enrolled:</b> {tour.Total_enrolled}
+                      </p>
+                      {/* Only show join button for users */}
+                      {user && user.role === "user" && (
+                        <button
+                          className="btn btn-primary w-100"
+                          onClick={() => joinTour(tour.Tour_id)}
+                        >
+                          Join Tour
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Recommended Places Button */}
       <div className="text-center my-4">
         <Link to="/recommended" className="btn btn-success btn-lg">
           Go to Recommended Places
         </Link>
       </div>
+
+      {/* Arrange Tour Button for Admins */}
+{user && user.role === "admin" && (
+  <div className="text-center mb-4">
+    <Link to="/admintourmanagement" className="btn btn-success">
+      Arrange Tour
+    </Link>
+  </div>
+)}
+
 
       {/* Tourist Spots */}
       <main id="tours" className="py-5">
@@ -219,7 +291,10 @@ export default function Home() {
               </h2>
               <div className="row g-4 justify-content-center">
                 {grouped[category].map((spot) => (
-                  <div key={spot.id} className="col-12 col-sm-6 col-md-4 col-lg-3">
+                  <div
+                    key={spot.id}
+                    className="col-12 col-sm-6 col-md-4 col-lg-3"
+                  >
                     <div className="card h-100 shadow-sm rounded-4 border-0 hover-scale">
                       <Link to={`/spot/${spot.id}`}>
                         <img

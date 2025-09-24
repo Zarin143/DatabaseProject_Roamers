@@ -5,9 +5,11 @@ import Home from "./pages/Home";
 import AddSpot from './pages/AddSpot'; 
 import SpotDetail from './pages/SpotDetail';
 import Favorites from './pages/Favorites'; 
-import Recommended from './pages/Recommended'; 
 import BookTour from './pages/BookTour'; 
+import Recommended from './pages/Recommended'; 
 import './App.css';
+
+import AdminTourManagement from "./pages/AdminTourManagement";
 
 function App() {
   return (
@@ -28,7 +30,8 @@ function App() {
           <Route path="/spot/:id" element={<SpotDetail />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/recommended" element={<Recommended />} />
-           <Route path="/book-tour/:id" element={<BookTour />} />
+          <Route path="/admintourmanagement" element={<AdminTourManagement />} />
+          <Route path="/book-tour/:id" element={<BookTour />} />
         </Routes>
       </div>
     </Router>
