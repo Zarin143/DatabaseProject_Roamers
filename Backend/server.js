@@ -575,6 +575,195 @@ app.put("/users/:id/location", async (req, res) => {
     res.status(500).json({ message: "Failed to update location" });
   }
 });
+// =============================
+// 🔹 POST Book Tour
+// =============================
+app.post("/bookings", async (req, res) => {
+  const { user_id, spot_id, booking_date, num_people, special_request } = req.body;
+
+  try {
+    // Call stored procedure
+    const [result] = await db.query(
+      "CALL AddBooking(?, ?, ?, ?, ?)",
+      [user_id, spot_id, booking_date, num_people, special_request]
+    );
+
+    if (result && result[0]?.message === "Booking successful") {
+      res.json({ success: true });
+    } else {
+      res.json({ success: false });
+    }
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ success: false, message: "Booking failed" });
+  }
+});
+
+// =============================
+// 🔹 GET Reviews for a Spot
+// =============================
+app.get("/reviews/:spotId", (req, res) => {
+  const { spotId } = req.params;
+  const sql = `
+    SELECT r.id, r.rating, r.comment, r.user_id, r.created_at, u.username 
+    FROM reviews r
+    JOIN users u ON r.user_id = u.id
+    WHERE r.spot_id = ?
+    ORDER BY r.created_at DESC
+  `;
+  db.query(sql, [spotId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Failed to fetch reviews" });
+    res.json(results);
+  });
+});
+
+// ✅ Add new review
+app.post("/reviews", authenticateToken, (req, res) => {
+  const { spotId, rating, comment } = req.body;
+  const userId = req.user.id;
+
+  const sql = "INSERT INTO reviews (spot_id, user_id, rating, comment) VALUES (?, ?, ?, ?)";
+  db.query(sql, [spotId, userId, rating, comment], (err, result) => {
+    if (err) return res.status(500).json({ error: "Failed to submit review" });
+    res.json({ message: "Review added successfully", id: result.insertId });
+  });
+});
+
+// ✅ Update review (only owner)
+app.put("/reviews/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { rating, comment } = req.body;
+  const userId = req.user.id;
+
+  const check = "SELECT * FROM reviews WHERE id = ? AND user_id = ?";
+  db.query(check, [id, userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (rows.length === 0) return res.status(403).json({ error: "Unauthorized" });
+
+    const sql = "UPDATE reviews SET rating = ?, comment = ? WHERE id = ?";
+    db.query(sql, [rating, comment, id], (err2) => {
+      if (err2) return res.status(500).json({ error: "Failed to update review" });
+      res.json({ message: "Review updated" });
+    });
+  });
+});
+
+// ✅ Delete review (only owner)
+app.delete("/reviews/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  const check = "SELECT * FROM reviews WHERE id = ? AND user_id = ?";
+  db.query(check, [id, userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (rows.length === 0) return res.status(403).json({ error: "Unauthorized" });
+
+    const sql = "DELETE FROM reviews WHERE id = ?";
+    db.query(sql, [id], (err2) => {
+      if (err2) return res.status(500).json({ error: "Failed to delete review" });
+      res.json({ message: "Review deleted" });
+    });
+  });
+});
+
+// =============================
+// 🔹 Add Tourist Spot to Favorites
+// =============================
+app.post("/favorites", authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const { spotId } = req.body;
+
+  console.log("Adding to favorites:", { userId, spotId }); // Debug log
+
+  if (!spotId) {
+    return res.status(400).json({ error: "Spot ID is required" });
+  }
+
+  const sql = "INSERT INTO favorite_spots (user_id, spot_id) VALUES (?, ?)";
+  db.query(sql, [userId, spotId], (err, result) => {
+    if (err) {
+      console.error("Favorite insert error:", err);
+      
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(400).json({ error: "This spot is already in your favorites" });
+      }
+      
+      if (err.code === "ER_NO_REFERENCED_ROW_2") {
+        return res.status(400).json({ error: "Invalid spot ID" });
+      }
+      
+      return res.status(500).json({ error: "Failed to add to favorites" });
+    }
+    
+    res.json({ 
+      message: "Successfully added to favorites",
+      favoriteId: result.insertId 
+    });
+  });
+});
+
+// =============================
+// 🔹 Get User Favorites (Fixed)
+// =============================
+app.get("/favorites", authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  
+  const sql = `
+    SELECT fs.id, fs.spot_id, ts.name, ts.location, ts.category, ts.image_url, ts.description
+    FROM favorite_spots fs
+    JOIN tourist_spots ts ON fs.spot_id = ts.id
+    WHERE fs.user_id = ?
+    ORDER BY fs.created_at DESC
+  `;
+  
+  db.query(sql, [userId], (err, results) => {
+    if (err) {
+      console.error("Error fetching favorites:", err);
+      return res.status(500).json({ error: "Failed to fetch favorites" });
+    }
+    res.json(results);
+  });
+});
+
+// =============================
+// 🔹 Remove from Favorites (Fixed)
+// =============================
+app.delete("/favorites/:spotId", authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const { spotId } = req.params;
+
+  const sql = "DELETE FROM favorite_spots WHERE user_id = ? AND spot_id = ?";
+  db.query(sql, [userId, spotId], (err, result) => {
+    if (err) {
+      console.error("Error removing favorite:", err);
+      return res.status(500).json({ error: "Failed to remove from favorites" });
+    }
+    
+    if (result.affectedRows === 0) {
+      return res.status(404).json({ error: "Favorite not found" });
+    }
+    
+    res.json({ message: "Removed from favorites successfully" });
+  });
+});
+
+// =============================
+// 🔹 Check if spot is in favorites
+// =============================
+app.get("/favorites/check/:spotId", authenticateToken, (req, res) => {
+  const userId = req.user.id;
+  const { spotId } = req.params;
+
+  const sql = "SELECT id FROM favorite_spots WHERE user_id = ? AND spot_id = ?";
+  db.query(sql, [userId, spotId], (err, results) => {
+    if (err) {
+      console.error("Error checking favorite:", err);
+      return res.status(500).json({ error: "Failed to check favorite" });
+    }
+    
+    res.json({ isFavorite: results.length > 0 });
+  });
+});
 
 // =============================
 // 🔹 Start Server
