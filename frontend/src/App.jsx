@@ -7,6 +7,7 @@ import SpotDetail from './pages/SpotDetail';
 import Favorites from './pages/Favorites'; 
 import Recommended from './pages/Recommended'; 
 import BookTour from './pages/BookTour'; 
+import MostVisitedPlaces from './pages/MostVisitedPlaces';
 import './App.css';
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
           <Route path="/spot/:id" element={<SpotDetail />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/recommended" element={<Recommended />} />
+          <Route path="/mostvisitedplaces" element={<MostVisitedPlaces />} />
            <Route path="/book-tour/:id" element={<BookTour />} />
         </Routes>
       </div>

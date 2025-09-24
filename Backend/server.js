@@ -360,23 +360,35 @@ app.put("/users/:id/location", async (req, res) => {
 app.post("/bookings", async (req, res) => {
   const { user_id, spot_id, booking_date, num_people, special_request } = req.body;
 
-  try {
-    // Call stored procedure
-    const [result] = await db.query(
-      "CALL AddBooking(?, ?, ?, ?, ?)",
-      [user_id, spot_id, booking_date, num_people, special_request]
-    );
+  if (!user_id || !spot_id || !booking_date || !num_people) {
+    return res.status(400).json({ success: false, message: "Missing required fields" });
+  }
 
-    if (result && result[0]?.message === "Booking successful") {
-      res.json({ success: true });
-    } else {
-      res.json({ success: false });
-    }
+  try {
+    // Call the stored procedure
+    db.query(
+      "CALL AddBooking(?, ?, ?, ?, ?)",
+      [user_id, spot_id, booking_date, num_people, special_request],
+      (err, results) => {
+        if (err) {
+          console.error("Booking error:", err);
+          return res.status(500).json({ success: false, message: "Booking failed" });
+        }
+
+        const message = results[0][0].message;
+        if (message === "Booking successful") {
+          res.json({ success: true, message });
+        } else {
+          res.status(500).json({ success: false, message });
+        }
+      }
+    );
   } catch (err) {
     console.error(err);
     res.status(500).json({ success: false, message: "Booking failed" });
   }
 });
+
 
 // =============================
 // 🔹 GET Reviews for a Spot
@@ -445,6 +457,15 @@ app.delete("/reviews/:id", authenticateToken, (req, res) => {
   });
 });
 
+// routes/mostvisited.js
+app.get("/mostvisitedplaces", (req, res) => {
+  const sql = "SELECT * FROM most_visited_place ORDER BY booking_count DESC";
+
+  db.query(sql, (err, results) => {
+    if (err) return res.status(500).json({ error: "Failed to fetch most visited places" });
+    res.json(results);
+  });
+});
 
 // =============================
 // 🔹 Start Server

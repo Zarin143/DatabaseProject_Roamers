@@ -202,13 +202,16 @@ export default function Home() {
         </div>
       </section>
 
-      {/* Recommended Places Button */}
-      <div className="text-center my-4">
-        <Link to="/recommended" className="btn btn-success btn-lg">
-          Go to Recommended Places
-        </Link>
-      </div>
+      {/* Recommended & Most Visited Places Buttons */}
+<div className="text-center my-4 d-flex justify-content-center gap-3">
+  <Link to="/recommended" className="btn btn-success btn-lg">
+    Go to Recommended Places
+  </Link>
 
+  <Link to="/mostvisitedplaces" className="btn btn-primary btn-lg">
+   Go to Most Visited Places
+  </Link>
+</div>
       {/* Tourist Spots */}
       <main id="tours" className="py-5">
         <div className="container" style={{ maxWidth: "1200px" }}>
