@@ -378,6 +378,73 @@ app.post("/bookings", async (req, res) => {
   }
 });
 
+// =============================
+// 🔹 GET Reviews for a Spot
+// =============================
+app.get("/reviews/:spotId", (req, res) => {
+  const { spotId } = req.params;
+  const sql = `
+    SELECT r.id, r.rating, r.comment, r.user_id, r.created_at, u.username 
+    FROM reviews r
+    JOIN users u ON r.user_id = u.id
+    WHERE r.spot_id = ?
+    ORDER BY r.created_at DESC
+  `;
+  db.query(sql, [spotId], (err, results) => {
+    if (err) return res.status(500).json({ error: "Failed to fetch reviews" });
+    res.json(results);
+  });
+});
+
+// ✅ Add new review
+app.post("/reviews", authenticateToken, (req, res) => {
+  const { spotId, rating, comment } = req.body;
+  const userId = req.user.id;
+
+  const sql = "INSERT INTO reviews (spot_id, user_id, rating, comment) VALUES (?, ?, ?, ?)";
+  db.query(sql, [spotId, userId, rating, comment], (err, result) => {
+    if (err) return res.status(500).json({ error: "Failed to submit review" });
+    res.json({ message: "Review added successfully", id: result.insertId });
+  });
+});
+
+// ✅ Update review (only owner)
+app.put("/reviews/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { rating, comment } = req.body;
+  const userId = req.user.id;
+
+  const check = "SELECT * FROM reviews WHERE id = ? AND user_id = ?";
+  db.query(check, [id, userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (rows.length === 0) return res.status(403).json({ error: "Unauthorized" });
+
+    const sql = "UPDATE reviews SET rating = ?, comment = ? WHERE id = ?";
+    db.query(sql, [rating, comment, id], (err2) => {
+      if (err2) return res.status(500).json({ error: "Failed to update review" });
+      res.json({ message: "Review updated" });
+    });
+  });
+});
+
+// ✅ Delete review (only owner)
+app.delete("/reviews/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const userId = req.user.id;
+
+  const check = "SELECT * FROM reviews WHERE id = ? AND user_id = ?";
+  db.query(check, [id, userId], (err, rows) => {
+    if (err) return res.status(500).json({ error: "Database error" });
+    if (rows.length === 0) return res.status(403).json({ error: "Unauthorized" });
+
+    const sql = "DELETE FROM reviews WHERE id = ?";
+    db.query(sql, [id], (err2) => {
+      if (err2) return res.status(500).json({ error: "Failed to delete review" });
+      res.json({ message: "Review deleted" });
+    });
+  });
+});
+
 
 // =============================
 // 🔹 Start Server

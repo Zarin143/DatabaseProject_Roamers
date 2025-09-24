@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import "bootstrap/dist/css/bootstrap.min.css";
+import ReviewList from "./ReviewList";
 
 export default function SpotDetail() {
   const { id } = useParams();
@@ -53,26 +54,43 @@ export default function SpotDetail() {
   };
 
   // Handle review submission
-  const handleReviewSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const token = localStorage.getItem("token");
-      if (!token) {
-        alert("Please log in first!");
-        navigate('/login');
-        return;
-      }
-      
-      // Here you would call your review API endpoint
-      console.log("Submitting review:", review);
-      alert("Review submitted successfully!");
-      setShowReviewModal(false);
-      setReview({ rating: 5, comment: "" });
-    } catch (err) {
-      console.error(err);
-      alert("Failed to submit review");
+const handleReviewSubmit = async (e) => {
+  e.preventDefault();
+  try {
+    const token = localStorage.getItem("token");
+    if (!token) {
+      alert("Please log in first!");
+      navigate('/login');
+      return;
     }
-  };
+
+    // Call backend /reviews API
+    await axios.post(
+      "http://localhost:5000/reviews",
+      {
+        spotId: spot.id,
+        rating: review.rating,
+        comment: review.comment,
+      },
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      }
+    );
+
+    alert("Review submitted successfully!");
+    setShowReviewModal(false);
+    setReview({ rating: 5, comment: "" });
+  } catch (err) {
+    console.error("Error submitting review:", err);
+    if (err.response?.status === 401) {
+      alert("Session expired. Please log in again.");
+      navigate("/login");
+    } else {
+      alert(err.response?.data?.error || "Failed to submit review");
+    }
+  }
+};
+
 
   // Generate Google Maps URL based on location
   const getGoogleMapsUrl = () => {
@@ -190,6 +208,9 @@ export default function SpotDetail() {
               <div className="bg-white rounded shadow-sm p-4">
                 <h3 className="mb-3">About {spot.name}</h3>
                 <p className="lead">{spot.description}</p>
+                   <hr />
+    <h4 className="mt-4">Reviews</h4>
+    <ReviewList spotId={spot.id} />
                 
                 {/* Additional Information */}
                 <div className="row mt-4">
