@@ -8,7 +8,7 @@ const app = express();
 
 // ✅ Middleware
 app.use(express.json());
-app.use(cors());
+app.use(cors()); 
 
 // =============================
 // 🔹 JWT Secret
@@ -23,37 +23,32 @@ app.get('/', (req, res) => {
 });
 
 // =============================
-// 🔹 Enhanced Middleware to Verify Token and Check Admin Role
+// 🔹 Fetch all users 
+// =============================
+app.get('/users', (req, res) => {
+  db.query('SELECT * FROM users', (err, results) => {
+    if (err) {
+      console.error(err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    res.json(results);
+  });
+});
+
+// =============================
+// 🔹 Middleware to Verify Token (ONLY ONCE)
 // =============================
 function authenticateToken(req, res, next) {
   const authHeader = req.headers["authorization"];
-  const token = authHeader && authHeader.split(" ")[1];
+  const token = authHeader && authHeader.split(" ")[1]; // Bearer <token>
 
   if (!token) return res.status(401).json({ error: "Access denied, no token provided" });
 
-  jwt.verify(token, JWT_SECRET, (err, decoded) => {
+  jwt.verify(token, JWT_SECRET, (err, user) => {
     if (err) return res.status(403).json({ error: "Invalid token" });
-
-    // Fetch user from database to get current role
-    const sql = "SELECT id, username, email, role FROM users WHERE id = ?";
-    db.query(sql, [decoded.id], (err, results) => {
-      if (err) return res.status(500).json({ error: "Database error" });
-      if (results.length === 0) return res.status(404).json({ error: "User not found" });
-
-      req.user = results[0]; // Now req.user has the complete user object with role
-      next();
-    });
+    req.user = user;
+    next();
   });
-}
-
-// =============================
-// 🔹 Admin Authorization Middleware
-// =============================
-function requireAdmin(req, res, next) {
-  if (req.user.role !== 'admin') {
-    return res.status(403).json({ error: "Admin access required" });
-  }
-  next();
 }
 
 // =============================
@@ -62,29 +57,27 @@ function requireAdmin(req, res, next) {
 app.post('/register', async (req, res) => {
   const { username, email, password, role } = req.body;
 
-  if (!username || !email || !password) {
-    return res.status(400).json({ error: "Username, email, and password are required" });
-  }
-
-  // Prevent users from registering as admin
-  if (role === 'admin') {
-    return res.status(403).json({ error: "Cannot register as admin" });
+  if (!username || !email || !password || !role) {
+    return res.status(400).json({ error: "All fields are required" });
   }
 
   try {
     const hashedPassword = await bcrypt.hash(password, 10);
-    const userRole = role || 'user';
 
     const sql = 'INSERT INTO users (username, email, password, role) VALUES (?, ?, ?, ?)';
-    db.query(sql, [username, email, hashedPassword, userRole], (err, result) => {
+    db.query(sql, [username, email, hashedPassword, role], (err, result) => {
       if (err) {
         console.error("Registration error:", err);
+
+        // Handle duplicate email error
         if (err.code === 'ER_DUP_ENTRY') {
           return res.status(400).json({ error: "Email already exists" });
         }
+
         return res.status(500).json({ error: "Database error" });
       }
-      res.status(201).json({ message: "User registered successfully", role: userRole });
+
+      res.status(201).json({ message: "User registered successfully", role });
     });
   } catch (err) {
     console.error("Server error:", err);
@@ -109,8 +102,8 @@ app.post("/login", (req, res) => {
 
     // Generate JWT token
     const token = jwt.sign(
-      { id: user.id, email: user.email },
-      JWT_SECRET,
+      { id: user.id, email: user.email }, 
+      JWT_SECRET, 
       { expiresIn: '24h' }
     );
 
@@ -122,63 +115,10 @@ app.post("/login", (req, res) => {
   });
 });
 
-// =============================
-// 🔹 GET single user by ID
-// =============================
-app.get('/users/:id', (req, res) => {
-  const userId = req.params.id;
-  const sql = 'SELECT id, username, email, role FROM users WHERE id = ?';
-
-  db.query(sql, [userId], (err, results) => {
-    if (err) {
-      console.error(err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    if (results.length === 0) {
-      return res.status(404).json({ error: "User not found" });
-    }
-    res.json(results[0]);
-  });
-});
-
-// =============================
-// 🔹 UPDATE user location
-// =============================
-app.put("/users/:id/location", async (req, res) => {
-  const userId = req.params.id;
-  const { location } = req.body;
-
-  try {
-    // First, add location column if it doesn't exist
-    await db.query("ALTER TABLE users ADD COLUMN IF NOT EXISTS location VARCHAR(255)");
-
-    // Update location in the database
-    await db.query("UPDATE users SET location = ? WHERE id = ?", [location, userId]);
-    res.status(200).json({ message: "Location updated" });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ message: "Failed to update location" });
-  }
-});
-
-// =============================
-// 🔹 GET tourist spots by category
-// =============================
-app.get('/tourist-spots', (req, res) => {
-  const sql = "SELECT * FROM tourist_spots ORDER BY category";
-  db.query(sql, (err, results) => {
-    if (err) {
-      console.error("Error fetching spots:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    res.json(results);
-  });
-});
-
 // =========================
-// POST Add Tourist Spot (Admin only)
+// POST Add Tourist Spot
 // =========================
-app.post("/tourist-spots", authenticateToken, requireAdmin, (req, res) => {
+app.post("/tourist-spots", (req, res) => {
   const {
     name,
     category,
@@ -217,6 +157,20 @@ app.post("/tourist-spots", authenticateToken, requireAdmin, (req, res) => {
 });
 
 // =============================
+// 🔹 GET tourist spots by category
+// =============================
+app.get('/tourist-spots', (req, res) => {
+  const sql = "SELECT * FROM tourist_spots ORDER BY category";
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching spots:", err);
+      return res.status(500).json({ error: "Database error" });
+    }
+    res.json(results);
+  });
+});
+
+// =============================
 // 🔹 /auth/me Route
 // =============================
 app.get("/auth/me", authenticateToken, (req, res) => {
@@ -233,9 +187,7 @@ app.get("/auth/me", authenticateToken, (req, res) => {
   });
 });
 
-// =============================
-// 🔹 Get single tourist spot by ID
-// =============================
+// Get single tourist spot by ID
 app.get("/tourist-spots/:id", (req, res) => {
   const { id } = req.params;
   const sql = "SELECT * FROM tourist_spots WHERE id = ?";
@@ -252,311 +204,137 @@ app.get("/tourist-spots/:id", (req, res) => {
 });
 
 // =============================
-// 🔹 TOUR MANAGEMENT ROUTES
+// 🔹 Add Tourist Spot to Favorites
 // =============================
+app.post("/favorites", authenticateToken, (req, res) => {
+  const userId = req.user.id; // From JWT token
+  const { spotId } = req.body;
 
-// =============================
-// 🔹 GET all community tours (for both admin and users)
-// =============================
-app.get('/community-tours', (req, res) => {
-  const sql = `
-    SELECT ct.*, ts.name as spot_name, ts.location, ts.category, ts.image_url
-    FROM community_tour ct 
-    JOIN tourist_spots ts ON ct.Place_id = ts.id 
-    ORDER BY ct.Tour_date
-  `;
-
-  db.query(sql, (err, results) => {
+  const sql = "INSERT INTO favorite_spots (user_id, spot_id) VALUES (?, ?)";
+  db.query(sql, [userId, spotId], (err, result) => {
     if (err) {
-      console.error("Error fetching community tours:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    res.json(results);
-  });
-});
-
-// =============================
-// 🔹 GET all tourist spots for dropdown (Admin use)
-// =============================
-app.get('/tourist-spots-list', (req, res) => {
-  const sql = "SELECT id, name, location FROM tourist_spots ORDER BY name";
-
-  db.query(sql, (err, results) => {
-    if (err) {
-      console.error("Error fetching spots list:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    res.json(results);
-  });
-});
-
-// =============================
-// 🔹 CREATE new community tour (Admin only)
-// =============================
-app.post('/admin/community-tours', authenticateToken, requireAdmin, (req, res) => {
-  const { Place_id, Tour_date, Cost_per_person, Total_enrolled } = req.body;
-
-  if (!Place_id || !Tour_date || !Cost_per_person) {
-    return res.status(400).json({ error: "Place, date, and cost are required" });
-  }
-
-  const sql = `
-    INSERT INTO community_tour (Place_id, Tour_date, Cost_per_person, Total_enrolled) 
-    VALUES (?, ?, ?, ?)
-  `;
-
-  db.query(sql, [Place_id, Tour_date, Cost_per_person, Total_enrolled || 0], (err, result) => {
-    if (err) {
-      console.error("Error creating tour:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    res.status(201).json({
-      message: "Tour created successfully",
-      tourId: result.insertId,
-      tour: {
-        Tour_id: result.insertId,
-        Place_id,
-        Tour_date,
-        Cost_per_person,
-        Total_enrolled: Total_enrolled || 0
+      if (err.code === "ER_DUP_ENTRY") {
+        return res.status(400).json({ error: "Already in favorites" });
       }
-    });
+      return res.status(500).json({ error: "DB insert failed" });
+    }
+    res.json({ message: "Added to favorites" });
   });
 });
 
 // =============================
-// 🔹 UPDATE community tour (Admin only)
+// 🔹 Get User Favorites
 // =============================
-app.put('/admin/community-tours/:tourId', authenticateToken, requireAdmin, (req, res) => {
-  const tourId = req.params.tourId;
-  const { Place_id, Tour_date, Cost_per_person, Total_enrolled } = req.body;
-
+app.get("/favorites", authenticateToken, (req, res) => {
+  const userId = req.user.id; // From JWT token
   const sql = `
-    UPDATE community_tour 
-    SET Place_id = ?, Tour_date = ?, Cost_per_person = ?, Total_enrolled = ?
-    WHERE Tour_id = ?
+    SELECT fs.id, ts.name, ts.location, ts.category, ts.image_url 
+    FROM favorite_spots fs
+    JOIN tourist_spots ts ON fs.spot_id = ts.id
+    WHERE fs.user_id = ?;
   `;
-
-  db.query(sql, [Place_id, Tour_date, Cost_per_person, Total_enrolled, tourId], (err, result) => {
-    if (err) {
-      console.error("Error updating tour:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Tour not found" });
-    }
-    res.json({ message: "Tour updated successfully" });
+  db.query(sql, [userId], (err, results) => {
+    if (err) return res.status(500).json({ error: "DB fetch failed" });
+    res.json(results);
   });
 });
 
 // =============================
-// 🔹 DELETE community tour (Admin only)
+// 🔹 Remove from Favorites
 // =============================
-app.delete('/admin/community-tours/:tourId', authenticateToken, requireAdmin, (req, res) => {
-  const tourId = req.params.tourId;
-
-  const sql = 'DELETE FROM community_tour WHERE Tour_id = ?';
-
-  db.query(sql, [tourId], (err, result) => {
-    if (err) {
-      console.error("Error deleting tour:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Tour not found" });
-    }
-    res.json({ message: "Tour deleted successfully" });
+app.delete("/favorites/:spotId", authenticateToken, (req, res) => {
+  const userId = req.user.id; // From JWT token
+  const { spotId } = req.params;
+  const sql = "DELETE FROM favorite_spots WHERE user_id = ? AND spot_id = ?";
+  db.query(sql, [userId, spotId], (err, result) => {
+    if (err) return res.status(500).json({ error: "DB delete failed" });
+    res.json({ message: "Removed from favorites" });
   });
-});
+}); 
 
 // =============================
-// 🔹 JOIN community tour (User)
+// 🔹 POST Review
 // =============================
-app.post('/community-tours/:tourId/join', authenticateToken, (req, res) => {
-  if (req.user.role === 'admin') {
-    return res.status(403).json({ error: "Admins cannot join tours" });
-  }
-  const tourId = req.params.tourId;
+app.post("/reviews", authenticateToken, (req, res) => {
+  const { spotId, rating, comment } = req.body;
   const userId = req.user.id;
 
-  // First check if user already joined
-  const checkSql = 'SELECT * FROM tour_participants WHERE tour_id = ? AND user_id = ?';
-  db.query(checkSql, [tourId, userId], (err, results) => {
+  const sql = "INSERT INTO reviews (user_id, spot_id, rating, comment) VALUES (?, ?, ?, ?)";
+  db.query(sql, [userId, spotId, rating, comment], (err, result) => {
     if (err) {
-      console.error("Error checking participation:", err);
-      return res.status(500).json({ error: "Database error" });
+      console.error("Review insert error:", err);
+      return res.status(500).json({ error: "Failed to submit review" });
     }
-
-    if (results.length > 0) {
-      return res.status(400).json({ error: "You have already joined this tour" });
-    }
-
-    // Join the tour
-    const joinSql = 'INSERT INTO tour_participants (tour_id, user_id) VALUES (?, ?)';
-    db.query(joinSql, [tourId, userId], (err, result) => {
-      if (err) {
-        console.error("Error joining tour:", err);
-        return res.status(500).json({ error: "Database error" });
-      }
-
-      // Update total enrolled count
-      const updateSql = 'UPDATE community_tour SET Total_enrolled = Total_enrolled + 1 WHERE Tour_id = ?';
-      db.query(updateSql, [tourId], (err, result) => {
-        if (err) {
-          console.error("Error updating enrollment:", err);
-        }
-        res.json({ message: "Successfully joined the tour" });
-      });
-    });
+    res.json({ message: "Review submitted successfully" });
   });
 });
 
 // =============================
-// 🔹 GET tour participants (Admin only)
+// 🔹 GET Reviews for a Spot
 // =============================
-app.get('/admin/community-tours/:tourId/participants', authenticateToken, requireAdmin, (req, res) => {
-  const tourId = req.params.tourId;
+app.get("/reviews/:spotId", (req, res) => {
+  const { spotId } = req.params;
 
   const sql = `
-    SELECT u.id, u.username, u.email, tp.joined_at 
-    FROM tour_participants tp
-    JOIN users u ON tp.user_id = u.id
-    WHERE tp.tour_id = ?
-    ORDER BY tp.joined_at DESC
+    SELECT r.*, u.username 
+    FROM reviews r 
+    JOIN users u ON r.user_id = u.id 
+    WHERE r.spot_id = ? 
+    ORDER BY r.created_at DESC
   `;
 
-  db.query(sql, [tourId], (err, results) => {
+  db.query(sql, [spotId], (err, results) => {
     if (err) {
-      console.error("Error fetching participants:", err);
-      return res.status(500).json({ error: "Database error" });
+      console.error("Review fetch error:", err);
+      return res.status(500).json({ error: "Failed to fetch reviews" });
     }
     res.json(results);
   });
 });
 
+
 // =============================
-// 🔹 ADD THESE COMPATIBILITY ROUTES
+// 🔹 GET Recommended place
 // =============================
+app.get("/recommended/:userId", (req, res) => {
+  const userId = req.params.userId;
 
-// Compatibility route - your frontend calls /tours but backend has /community-tours
-app.get('/tours', (req, res) => {
-  const sql = `
-    SELECT ct.*, ts.name as place_name, ts.location, ts.image_url
-    FROM community_tour ct 
-    JOIN tourist_spots ts ON ct.Place_id = ts.id 
-    ORDER BY ct.Tour_date
-  `;
+  // Get user's location
+  const userQuery = "SELECT location FROM users WHERE id = ?";
+  db.query(userQuery, [userId], (err, userResult) => {
+    if (err) return res.status(500).json({ error: err.message });
+    if (userResult.length === 0)
+      return res.status(404).json({ error: "User not found" });
 
-  db.query(sql, (err, results) => {
-    if (err) {
-      console.error("Error fetching tours:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    res.json(results);
-  });
-});
+    const userLocation = userResult[0].location;
 
-// Compatibility route for tour creation
-app.post('/tours', authenticateToken, requireAdmin, (req, res) => {
-  const { placeId, tourDate, costPerPerson } = req.body;
+    // Fetch tourist spots matching user's location
+    const spotsQuery = `
+      SELECT * FROM tourist_spots
+      WHERE FIND_IN_SET(?, location)
+    `;
+    db.query(spotsQuery, [userLocation], (err, spotsResult) => {
+      if (err) return res.status(500).json({ error: err.message });
 
-  if (!placeId || !tourDate || !costPerPerson) {
-    return res.status(400).json({ error: "Place, date, and cost are required" });
-  } 
-
-  const today = new Date();
-  const selectedDate = new Date(tourDate);
-
-  // Prevent past or today's dates
-  if (selectedDate <= today) {
-    return res.status(400).json({ error: "Tour date must be in the future" });
-  }
-
-  const sql = `
-    INSERT INTO community_tour (Place_id, Tour_date, Cost_per_person, Total_enrolled) 
-    VALUES (?, ?, ?, ?)
-  `;
-
-  db.query(sql, [placeId, tourDate, costPerPerson, 0], (err, result) => {
-    if (err) {
-      console.error("Error creating tour:", err);
-      return res.status(500).json({ error: "Database error" });
-    }
-    res.status(201).json({
-      message: "Tour created successfully",
-      tourId: result.insertId
-    });
-  });
-});
-
-// Compatibility route for joining tours
-app.post('/tours/:tourId/join', authenticateToken, (req, res) => {
-  if (req.user.role === 'admin') {
-    return res.status(403).json({ error: "Admins cannot join tours" });
-  }
-  const tourId = req.params.tourId;
-  const userId = req.user.id;
-
-  db.query("SELECT * FROM community_tour WHERE Tour_id = ?", [tourId], (err, results) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (results.length === 0) return res.status(404).json({ error: "Tour not found" });
-
-    const tour = results[0];
-    const today = new Date();
-    const tourDate = new Date(tour.Tour_date);
-
-    if (tourDate <= today) {
-      return res.status(400).json({ error: "Cannot join a past tour" });
-    }
-
-    // Check duplicate enrollment
-    db.query("SELECT * FROM tour_participants WHERE tour_id=? AND user_id=?", [tourId, userId], (err2, already) => {
-      if (err2) return res.status(500).json({ error: "Database error" });
-      if (already.length > 0) return res.status(400).json({ error: "Already joined this tour" });
-
-      db.query("INSERT INTO tour_participants (tour_id, user_id) VALUES (?, ?)", [tourId, userId], (err3) => {
-        if (err3) return res.status(500).json({ error: "Join failed" });
-
-        db.query("UPDATE community_tour SET Total_enrolled = Total_enrolled + 1 WHERE Tour_id=?", [tourId]);
-        res.json({ message: "Successfully joined the tour!" });
+      // Insert recommended places into recommended_place table
+      spotsResult.forEach((spot) => {
+        const insertQuery = `
+          INSERT INTO recommended_place (Nearby_place, Distance, Address, user_id, spot_id)
+          VALUES (?, ?, ?, ?, ?)
+          ON DUPLICATE KEY UPDATE Distance = VALUES(Distance), Address = VALUES(Address)
+        `;
+        db.query(
+          insertQuery,
+          [spot.name, spot.distance_from_current_location, spot.location, userId, spot.id],
+          (err2) => {
+            if (err2) console.error("Failed to insert recommended place:", err2.message);
+          }
+        );
       });
+
+      // Return recommended spots to frontend
+      res.json(spotsResult);
     });
-  });
-});
-app.put('/tours/:tourId', authenticateToken, requireAdmin, (req, res) => {
-  const { tourId } = req.params;
-  const { placeId, tourDate, costPerPerson } = req.body;
-
-  if (!placeId || !tourDate || !costPerPerson) {
-    return res.status(400).json({ error: "All fields are required" });
-  }
-
-  const today = new Date();
-  const selectedDate = new Date(tourDate);
-  if (selectedDate <= today) {
-    return res.status(400).json({ error: "New tour date must be in the future" });
-  }
-
-  const sql = `
-    UPDATE community_tour 
-    SET Place_id=?, Tour_date=?, Cost_per_person=? 
-    WHERE Tour_id=?
-  `;
-  db.query(sql, [placeId, tourDate, costPerPerson, tourId], (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (result.affectedRows === 0) return res.status(404).json({ error: "Tour not found" });
-
-    res.json({ message: "Tour updated successfully" });
-  });
-});
-app.delete('/tours/:tourId', authenticateToken, requireAdmin, (req, res) => {
-  const { tourId } = req.params;
-
-  db.query("DELETE FROM community_tour WHERE Tour_id=?", [tourId], (err, result) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (result.affectedRows === 0) return res.status(404).json({ error: "Tour not found" });
-
-    res.json({ message: "Tour deleted successfully" });
   });
 });
 // =============================
@@ -575,6 +353,7 @@ app.put("/users/:id/location", async (req, res) => {
     res.status(500).json({ message: "Failed to update location" });
   }
 });
+
 // =============================
 // 🔹 POST Book Tour
 // =============================
@@ -598,172 +377,178 @@ app.post("/bookings", async (req, res) => {
     res.status(500).json({ success: false, message: "Booking failed" });
   }
 });
-
 // =============================
-// 🔹 GET Reviews for a Spot
+// 🔹 most visited place
 // =============================
-app.get("/reviews/:spotId", (req, res) => {
-  const { spotId } = req.params;
+// GET most visited places
+app.get("/mostvisitedplaces", (req, res) => {
   const sql = `
-    SELECT r.id, r.rating, r.comment, r.user_id, r.created_at, u.username 
-    FROM reviews r
-    JOIN users u ON r.user_id = u.id
-    WHERE r.spot_id = ?
-    ORDER BY r.created_at DESC
+    SELECT 
+      ts.id AS spot_id,
+      ts.name,
+      ts.location,
+      ts.category,
+      ts.image_url,
+      COUNT(b.id) AS booking_count
+    FROM tourist_spots ts
+    LEFT JOIN bookings b ON ts.id = b.spot_id
+    GROUP BY ts.id
+    ORDER BY booking_count DESC
+    LIMIT 10
   `;
-  db.query(sql, [spotId], (err, results) => {
-    if (err) return res.status(500).json({ error: "Failed to fetch reviews" });
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching most visited places:", err);
+      return res.status(500).json({ error: "Failed to fetch most visited places" });
+    }
     res.json(results);
   });
 });
 
-// ✅ Add new review
-app.post("/reviews", authenticateToken, (req, res) => {
-  const { spotId, rating, comment } = req.body;
-  const userId = req.user.id;
-
-  const sql = "INSERT INTO reviews (spot_id, user_id, rating, comment) VALUES (?, ?, ?, ?)";
-  db.query(sql, [spotId, userId, rating, comment], (err, result) => {
-    if (err) return res.status(500).json({ error: "Failed to submit review" });
-    res.json({ message: "Review added successfully", id: result.insertId });
-  });
-});
-
-// ✅ Update review (only owner)
-app.put("/reviews/:id", authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const { rating, comment } = req.body;
-  const userId = req.user.id;
-
-  const check = "SELECT * FROM reviews WHERE id = ? AND user_id = ?";
-  db.query(check, [id, userId], (err, rows) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (rows.length === 0) return res.status(403).json({ error: "Unauthorized" });
-
-    const sql = "UPDATE reviews SET rating = ?, comment = ? WHERE id = ?";
-    db.query(sql, [rating, comment, id], (err2) => {
-      if (err2) return res.status(500).json({ error: "Failed to update review" });
-      res.json({ message: "Review updated" });
-    });
-  });
-});
-
-// ✅ Delete review (only owner)
-app.delete("/reviews/:id", authenticateToken, (req, res) => {
-  const { id } = req.params;
-  const userId = req.user.id;
-
-  const check = "SELECT * FROM reviews WHERE id = ? AND user_id = ?";
-  db.query(check, [id, userId], (err, rows) => {
-    if (err) return res.status(500).json({ error: "Database error" });
-    if (rows.length === 0) return res.status(403).json({ error: "Unauthorized" });
-
-    const sql = "DELETE FROM reviews WHERE id = ?";
-    db.query(sql, [id], (err2) => {
-      if (err2) return res.status(500).json({ error: "Failed to delete review" });
-      res.json({ message: "Review deleted" });
-    });
-  });
-});
-
 // =============================
-// 🔹 Add Tourist Spot to Favorites
+// 🔹 TOURS Management (community_tour)
 // =============================
-app.post("/favorites", authenticateToken, (req, res) => {
-  const userId = req.user.id;
-  const { spotId } = req.body;
 
-  console.log("Adding to favorites:", { userId, spotId }); // Debug log
+// GET all tours with joined tourist spot info
+app.get("/tours", (req, res) => {
+  const sql = `
+    SELECT 
+      ct.Tour_id,
+      ct.Place_id,
+      ct.Tour_date,
+      ct.Cost_per_person,
+      ct.Total_enrolled,
+      ts.name AS place_name,
+      ts.location,
+      ts.image_url
+    FROM community_tour ct
+    JOIN tourist_spots ts ON ct.Place_id = ts.id
+    ORDER BY ct.Tour_date DESC
+  `;
+  db.query(sql, (err, results) => {
+    if (err) {
+      console.error("Error fetching tours:", err);
+      return res.status(500).json({ error: "Failed to fetch tours" });
+    }
+    res.json(results);
+  });
+});
 
-  if (!spotId) {
-    return res.status(400).json({ error: "Spot ID is required" });
+// POST create new tour
+app.post("/tours", authenticateToken, (req, res) => {
+  const { placeId, tourDate, costPerPerson } = req.body;
+
+  // Validate required fields
+  if (!placeId || !tourDate || !costPerPerson) {
+    return res
+      .status(400)
+      .json({ error: "placeId, tourDate, and costPerPerson are required" });
   }
 
-  const sql = "INSERT INTO favorite_spots (user_id, spot_id) VALUES (?, ?)";
-  db.query(sql, [userId, spotId], (err, result) => {
+  // Check if the Place_id exists in the place table
+  const checkPlaceSql = "SELECT * FROM place WHERE Place_id = ?";
+  db.query(checkPlaceSql, [placeId], (err, results) => {
     if (err) {
-      console.error("Favorite insert error:", err);
-      
-      if (err.code === "ER_DUP_ENTRY") {
-        return res.status(400).json({ error: "This spot is already in your favorites" });
-      }
-      
-      if (err.code === "ER_NO_REFERENCED_ROW_2") {
-        return res.status(400).json({ error: "Invalid spot ID" });
-      }
-      
-      return res.status(500).json({ error: "Failed to add to favorites" });
+      console.error("Error checking Place_id:", err);
+      return res.status(500).json({ error: "Database error while validating place" });
     }
-    
-    res.json({ 
-      message: "Successfully added to favorites",
-      favoriteId: result.insertId 
+
+    if (results.length === 0) {
+      return res.status(400).json({ error: "Invalid placeId. Place does not exist." });
+    }
+
+    // Insert tour into community_tour
+    const insertSql = `
+      INSERT INTO community_tour (Place_id, Tour_date, Cost_per_person, Total_enrolled)
+      VALUES (?, ?, ?, 0)
+    `;
+    db.query(insertSql, [placeId, tourDate, costPerPerson], (err, result) => {
+      if (err) {
+        console.error("Error creating tour:", err);
+        return res.status(500).json({ error: "Failed to create tour" });
+      }
+
+      res.status(201).json({
+        message: "Tour created successfully",
+        tourId: result.insertId,
+        tour: {
+          Tour_id: result.insertId,
+          Place_id: placeId,
+          Tour_date: tourDate,
+          Cost_per_person: costPerPerson,
+          Total_enrolled: 0,
+        },
+      });
     });
   });
 });
 
-// =============================
-// 🔹 Get User Favorites (Fixed)
-// =============================
-app.get("/favorites", authenticateToken, (req, res) => {
-  const userId = req.user.id;
-  
+
+// PUT update tour
+app.put("/tours/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+  const { placeId, tourDate, costPerPerson } = req.body;
+
   const sql = `
-    SELECT fs.id, fs.spot_id, ts.name, ts.location, ts.category, ts.image_url, ts.description
-    FROM favorite_spots fs
-    JOIN tourist_spots ts ON fs.spot_id = ts.id
-    WHERE fs.user_id = ?
-    ORDER BY fs.created_at DESC
+    UPDATE community_tour 
+    SET Place_id = ?, Tour_date = ?, Cost_per_person = ?
+    WHERE Tour_id = ?
   `;
-  
-  db.query(sql, [userId], (err, results) => {
+  db.query(sql, [placeId, tourDate, costPerPerson, id], (err, result) => {
     if (err) {
-      console.error("Error fetching favorites:", err);
-      return res.status(500).json({ error: "Failed to fetch favorites" });
+      console.error("Error updating tour:", err);
+      return res.status(500).json({ error: "Failed to update tour" });
     }
-    res.json(results);
+    res.json({ message: "Tour updated successfully" });
   });
 });
 
-// =============================
-// 🔹 Remove from Favorites (Fixed)
-// =============================
-app.delete("/favorites/:spotId", authenticateToken, (req, res) => {
-  const userId = req.user.id;
+// DELETE tour
+app.delete("/tours/:id", authenticateToken, (req, res) => {
+  const { id } = req.params;
+
+  const sql = "DELETE FROM community_tour WHERE Tour_id = ?";
+  db.query(sql, [id], (err, result) => {
+    if (err) {
+      console.error("Error deleting tour:", err);
+      return res.status(500).json({ error: "Failed to delete tour" });
+    }
+    res.json({ message: "Tour deleted successfully" });
+  });
+});
+
+
+
+app.get("/hotels/:spotId", (req, res) => {
   const { spotId } = req.params;
 
-  const sql = "DELETE FROM favorite_spots WHERE user_id = ? AND spot_id = ?";
-  db.query(sql, [userId, spotId], (err, result) => {
-    if (err) {
-      console.error("Error removing favorite:", err);
-      return res.status(500).json({ error: "Failed to remove from favorites" });
-    }
-    
-    if (result.affectedRows === 0) {
-      return res.status(404).json({ error: "Favorite not found" });
-    }
-    
-    res.json({ message: "Removed from favorites successfully" });
+  // Step 1: Get the tourist spot location
+  const spotSql = "SELECT location FROM tourist_spots WHERE id = ?";
+  db.query(spotSql, [spotId], (err, spotResult) => {
+    if (err) return res.status(500).json({ error: "Failed to fetch spot" });
+    if (spotResult.length === 0) return res.status(404).json({ error: "Spot not found" });
+
+    const location = spotResult[0].location;
+
+    // Step 2: Split location into words for flexible matching
+    const words = location.split(" ").map(w => w.trim()).filter(Boolean);
+
+    if (words.length === 0) return res.json([]);
+
+    // Step 3: Construct SQL to match any common word
+    const conditions = words.map(_ => "LOWER(location) LIKE ?").join(" OR ");
+    const values = words.map(w => `%${w.toLowerCase()}%`);
+
+    const hotelSql = `SELECT * FROM hotels WHERE ${conditions} ORDER BY rating DESC`;
+
+    db.query(hotelSql, values, (err, hotels) => {
+      if (err) return res.status(500).json({ error: "Failed to fetch hotels" });
+      res.json(hotels);
+    });
   });
 });
 
-// =============================
-// 🔹 Check if spot is in favorites
-// =============================
-app.get("/favorites/check/:spotId", authenticateToken, (req, res) => {
-  const userId = req.user.id;
-  const { spotId } = req.params;
 
-  const sql = "SELECT id FROM favorite_spots WHERE user_id = ? AND spot_id = ?";
-  db.query(sql, [userId, spotId], (err, results) => {
-    if (err) {
-      console.error("Error checking favorite:", err);
-      return res.status(500).json({ error: "Failed to check favorite" });
-    }
-    
-    res.json({ isFavorite: results.length > 0 });
-  });
-});
 
 // =============================
 // 🔹 Start Server

@@ -7,6 +7,8 @@ import SpotDetail from './pages/SpotDetail';
 import Favorites from './pages/Favorites'; 
 import BookTour from './pages/BookTour'; 
 import Recommended from './pages/Recommended'; 
+import HotelsNearSpot from './pages/HotelsNearSpot';
+import MostVisitedPlaces from './pages/MostVisitedPlaces';
 import './App.css';
 
 import AdminTourManagement from "./pages/AdminTourManagement";
@@ -31,7 +33,9 @@ function App() {
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/recommended" element={<Recommended />} />
           <Route path="/admintourmanagement" element={<AdminTourManagement />} />
-          <Route path="/book-tour/:id" element={<BookTour />} />
+             <Route path="/mostvisitedplaces" element={<MostVisitedPlaces />} />
+            <Route path="/hotels/:spotId" element={<HotelsNearSpot />} />
+
         </Routes>
       </div>
     </Router>

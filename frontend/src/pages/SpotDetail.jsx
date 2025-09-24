@@ -305,11 +305,13 @@ const handleReviewSubmit = async (e) => {
   <i className="bi bi-calendar-check me-2"></i>
   Book Tour
 </Link>
-                    <button className="btn btn-info btn-lg rounded-pill">
-                      <i className="bi bi-building me-2"></i>
-                      Find Hotels
-                    </button>
                     <button 
+  className="btn btn-info btn-lg rounded-pill"
+  onClick={() => navigate(`/hotels/${spot.id}`)}
+>
+  <i className="bi bi-building me-2"></i>
+  Find Hotels
+</button>       <button 
                       className="btn btn-warning rounded-pill"
                       onClick={() => setShowReviewModal(true)}
                     >
