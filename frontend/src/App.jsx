@@ -8,6 +8,8 @@ import Favorites from './pages/Favorites';
 import Recommended from './pages/Recommended'; 
 import './App.css';
 
+import AdminTourManagement from "./pages/AdminTourManagement";
+
 function App() {
   return (
     <Router>
@@ -27,6 +29,7 @@ function App() {
           <Route path="/spot/:id" element={<SpotDetail />} />
           <Route path="/favorites" element={<Favorites />} />
           <Route path="/recommended" element={<Recommended />} />
+          <Route path="/admintourmanagement" element={<AdminTourManagement />} />
         </Routes>
       </div>
     </Router>
